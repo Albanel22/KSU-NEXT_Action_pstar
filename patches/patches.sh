@@ -26,7 +26,8 @@ fi
 ## read_write.c
 if [ -z "$(grep "ksu" fs/read_write.c)" ]; then
     sed -i '/ssize_t vfs_read(struct file/i\extern bool ksu_vfs_read_hook __read_mostly;\nextern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,\n        size_t *count_ptr, loff_t **pos);' fs/read_write.c
-    sed -i '/if (unlikely(!access_ok(VERIFY_WRITE, buf, count)))/i\    if (unlikely(ksu_vfs_read_hook))\n        ksu_handle_vfs_read(&file, &buf, &count, &pos);' fs/read_write.c
+    # Ajout d'accolades englobantes pour éviter le misleading indentation avec l'if suivant
+    sed -i '/if (unlikely(!access_ok(VERIFY_WRITE, buf, count)))/i\    if (unlikely(ksu_vfs_read_hook)) {\n        ksu_handle_vfs_read(&file, &buf, &count, &pos);\n    }' fs/read_write.c
 fi
 
 ## stat.c
@@ -44,7 +45,8 @@ fi
 ## input.c
 if [ -z "$(grep "ksu" drivers/input/input.c)" ]; then
     sed -i '/static void input_handle_event/i\extern bool ksu_input_hook __read_mostly;\nextern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);' drivers/input/input.c
-    sed -i '/if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)/i\    if (unlikely(ksu_input_hook))\n        ksu_handle_input_handle_event(&type, &code, &value);' drivers/input/input.c
+    # Ajout d'accolades englobantes pour sécuriser l'indentation
+    sed -i '/if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)/i\    if (unlikely(ksu_input_hook)) {\n        ksu_handle_input_handle_event(&type, &code, &value);\n    }' drivers/input/input.c
 fi
 
 echo "Patch kernel is ok"
