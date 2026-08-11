@@ -200,9 +200,11 @@ jobs:
 
     - name: Apply Custom KernelSU Patches
       run: |
+        echo "------------ Copying and Applying KernelSU patches ----------------------------------------------"
+        cp $GITHUB_WORKSPACE/patches/patches.sh $GITHUB_WORKSPACE/kernel_workspace/android-kernel/
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Applying local KernelSU patches ----------------------------------------------"
-        sh patches/patches.sh
+        sh patches.sh
+        rm patches.sh
 
     - name: Import Docker Config
       if: env.IMPORT_DOCKER == 'true'
