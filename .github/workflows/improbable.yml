@@ -434,6 +434,20 @@ jobs:
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
         echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
 
+    - name: Apply KernelSU Patches
+      if: env.ENABLE_KERNELSU == 'true'
+      run: |
+        echo "------------ Copying and Applying Patches ----------------------------------------------"
+        # On copie le script depuis ton dépôt vers le dossier du noyau
+        cp $GITHUB_WORKSPACE/patches/patches.sh $GITHUB_WORKSPACE/kernel_workspace/android-kernel/
+        
+        # On exécute le script
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        sh patches.sh
+        
+        # On nettoie pour ne pas laisser traîner le script
+        rm patches.sh
+
     - name: Setup Configuration for Kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
