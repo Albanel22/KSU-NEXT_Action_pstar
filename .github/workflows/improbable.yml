@@ -480,16 +480,6 @@ jobs:
         key: build-kernel-${{ env.DEVICE }}${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
         max-size: 2G
 
-    - name: Enable KernelSU in Kernel Config
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        # Active CONFIG_KSU dans le fichier .config (par défaut ou via script de config)
-        scripts/config --file out/.config --enable KSU || echo "CONFIG_KSU=y" >> out/.config
-        
-        # Optionnel mais recommandé pour s'assurer que le defconfig prend bien en compte les modifications
-        make O=out olddefconfig
-
     - name: Build kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -500,8 +490,19 @@ jobs:
           export KSU_EXPECTED_SIZE=${{ env.KSU_EXPECTED_SIZE }}
           export KSU_EXPECTED_HASH=${{ env.KSU_EXPECTED_HASH }}
         fi
-        make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }} ${{ env.KERNEL_CONFIG }}
-        if [ ${{ env.ENABLE_CCACHE }} = true ]; then
+
+        # 1. Génération de la configuration initiale (crée out/.config)
+        make CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }} ${{ env.KERNEL_CONFIG }}
+
+        # 2. Activation automatique de KernelSU dans le .config
+        if [ "${{ env.ENABLE_KERNELSU }}" = "true" ]; then
+            echo "[-] Enabling KernelSU in .config..."
+            scripts/config --file out/.config --enable KSU
+            make O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} olddefconfig
+        fi
+
+        # 3. Lancement de la compilation complète
+        if [ "${{ env.ENABLE_CCACHE }}" = "true" ]; then
             make -j$(nproc --all) CC="ccache clang" O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
         else
             make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
