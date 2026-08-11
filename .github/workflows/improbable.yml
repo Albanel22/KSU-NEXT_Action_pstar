@@ -198,6 +198,12 @@ jobs:
         echo "------------ Download Patches --------------------------------------------------------------"
         git clone https://github.com/lss4/kernel_patches.git --depth=1
 
+    - name: Apply Custom KernelSU Patches
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        echo "------------ Applying local KernelSU patches ----------------------------------------------"
+        sh patches/patches.sh
+
     - name: Import Docker Config
       if: env.IMPORT_DOCKER == 'true'
       run: |
