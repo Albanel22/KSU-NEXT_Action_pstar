@@ -503,6 +503,15 @@ jobs:
         key: build-kernel-${{ env.DEVICE }}${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
         max-size: 2G
 
+    - name: Fix ksu_input_hook Symbol for KernelSU-Next
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        mkdir -p drivers/kernelsu/override
+        echo '#include <linux/types.h>' > drivers/kernelsu/override/ksu_fix.c
+        echo 'bool ksu_input_hook = false;' >> drivers/kernelsu/override/ksu_fix.c
+        echo 'obj-y += override/ksu_fix.o' >> drivers/kernelsu/Makefile
+        echo "Successfully injected ksu_input_hook symbol override."
+
     - name: Build kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
