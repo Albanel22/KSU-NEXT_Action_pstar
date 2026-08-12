@@ -437,20 +437,30 @@ jobs:
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
         echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
 
-    - name: Define ksu_input_hook globally
+    - name: Apply Input Hook for KernelSU-Next
       if: env.ENABLE_KERNELSU == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        echo "------------ Applying input.c hook for KernelSU-Next -----------------"
         
-        # Cherche où se trouve le fichier core ou ksu principal pour y injecter la déclaration
-        CORE_FILE=$(find drivers/kernelsu -name "core.c" -o -name "ksu.c" | head -n 1)
-        
-        if [ -n "$CORE_FILE" ]; then
-            echo "Injecting ksu_input_hook into $CORE_FILE"
-            echo -e "\nbool ksu_input_hook = false;\n" >> "$CORE_FILE"
+        # Vérifie si le hook n'est pas déjà présent pour éviter les doublons
+        if ! grep -q "ksu_input_hook" drivers/input/input.c; then
+            sed -i '/static void input_handle_event/i \
+            #ifdef CONFIG_KSU\
+            extern bool ksu_input_hook __read_mostly;\
+            extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\
+            #endif\
+            ' drivers/input/input.c
+
+            sed -i '/int disposition = input_get_disposition(dev, type, code, &value);/a \
+            #ifdef CONFIG_KSU\
+                if (unlikely(ksu_input_hook))\
+                    ksu_handle_input_handle_event(\&type, \&code, \&value);\
+            #endif\
+            ' drivers/input/input.c
+            echo "Input hook successfully added to drivers/input/input.c"
         else
-            echo "Core file not found, creating definition fallback..."
-            echo -e "bool ksu_input_hook = false;" > drivers/kernelsu/input_hook_def.c
+            echo "Input hook already exists in drivers/input/input.c"
         fi
 
   
