@@ -463,6 +463,23 @@ jobs:
             echo "Input hook already exists in drivers/input/input.c"
         fi
 
+    - name: Force declare ksu_input_hook variable
+      if: env.ENABLE_KERNELSU == 'true'
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        echo "------------ Forcing global declaration of ksu_input_hook -----------------"
+        
+        # On cherche un fichier source central de KernelSU pour y injecter la variable globale
+        KSU_TARGET=$(find drivers/kernelsu -name "core.c" -o -name "ksu.c" -o -name "allowlist.c" | head -n 1)
+        
+        if [ -n "$KSU_TARGET" ]; then
+            echo "Injecting global bool ksu_input_hook into $KSU_TARGET"
+            echo -e "\nbool ksu_input_hook = false;\n" >> "$KSU_TARGET"
+        else
+            echo "bool ksu_input_hook = false;" > drivers/kernelsu/ksu_hook_override.c
+            echo "obj-y += ksu_hook_override.o" >> drivers/kernelsu/Makefile
+        fi
+
   
     # [NEUTRALISÉ] Étape supprimée pour éviter les conflits de scripts personnalisés
     # - name: Apply KernelSU Patches
