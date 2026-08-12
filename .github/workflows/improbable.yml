@@ -457,6 +457,20 @@ jobs:
     #     sh patches.sh
     #     rm patches.sh
 
+    - name: Fix ksu_input_hook Symbol for KernelSU-Next
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        
+        # Crée un fichier source minimal qui déclare le symbole attendu par selinux_hide.c
+        mkdir -p drivers/kernelsu/override
+        echo '#include <linux/types.h>' > drivers/kernelsu/override/ksu_fix.c
+        echo 'bool ksu_input_hook = false;' >> drivers/kernelsu/override/ksu_fix.c
+        
+        # L'ajoute au Makefile de KernelSU pour qu'il soit compilé en dur
+        echo 'obj-y += override/ksu_fix.o' >> drivers/kernelsu/Makefile
+        
+        echo "Successfully injected ksu_input_hook symbol override."
+
     - name: Setup Configuration for Kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
