@@ -430,55 +430,21 @@ jobs:
             echo "HAVE_SOURCE_BOOT_IMAGE=true" >> $GITHUB_ENV
         fi
   
-    - name: Setup KernelSU
+    - name: Setup KernelSU-Next
       if: env.ENABLE_KERNELSU == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        
+        # 1. Utilisation du script officiel de la branche choisie
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
-        echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
-
-    - name: Apply Input Hook for KernelSU-Next
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Applying input.c hook for KernelSU-Next -----------------"
         
-        # Vérifie si le hook n'est pas déjà présent pour éviter les doublons
-        if ! grep -q "ksu_input_hook" drivers/input/input.c; then
-            sed -i '/static void input_handle_event/i \
-            #ifdef CONFIG_KSU\
-            extern bool ksu_input_hook __read_mostly;\
-            extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\
-            #endif\
-            ' drivers/input/input.c
-
-            sed -i '/int disposition = input_get_disposition(dev, type, code, &value);/a \
-            #ifdef CONFIG_KSU\
-                if (unlikely(ksu_input_hook))\
-                    ksu_handle_input_handle_event(\&type, \&code, \&value);\
-            #endif\
-            ' drivers/input/input.c
-            echo "Input hook successfully added to drivers/input/input.c"
-        else
-            echo "Input hook already exists in drivers/input/input.c"
-        fi
-
-    - name: Force declare ksu_input_hook variable
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Forcing global declaration of ksu_input_hook -----------------"
+        # 2. Injection des configurations obligatoires pour KernelSU sur noyau 4.19
+        echo "CONFIG_KSU=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+        echo "CONFIG_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+        echo "CONFIG_HAVE_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+        echo "CONFIG_KPROBE_EVENTS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         
-        # On cherche un fichier source central de KernelSU pour y injecter la variable globale
-        KSU_TARGET=$(find drivers/kernelsu -name "core.c" -o -name "ksu.c" -o -name "allowlist.c" | head -n 1)
-        
-        if [ -n "$KSU_TARGET" ]; then
-            echo "Injecting global bool ksu_input_hook into $KSU_TARGET"
-            echo -e "\nbool ksu_input_hook = false;\n" >> "$KSU_TARGET"
-        else
-            echo "bool ksu_input_hook = false;" > drivers/kernelsu/ksu_hook_override.c
-            echo "obj-y += ksu_hook_override.o" >> drivers/kernelsu/Makefile
-        fi
+        echo "UPLOADNAME=-KernelSU-Next" >> $GITHUB_ENV
 
   
     # [NEUTRALISÉ] Étape supprimée pour éviter les conflits de scripts personnalisés
