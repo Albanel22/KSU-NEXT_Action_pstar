@@ -437,6 +437,28 @@ jobs:
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
         echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
 
+    - name: Patch input.c for KernelSU
+      if: env.ENABLE_KERNELSU == 'true'
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        echo "------------ Patching drivers/input/input.c for KernelSU input hook -----------------"
+        
+        # Insertion des déclarations externes avant input_handle_event
+        sed -i '/static void input_handle_event/i \
+        #ifdef CONFIG_KSU\
+        extern bool ksu_input_hook __read_mostly;\
+        extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\
+        #endif\
+        ' drivers/input/input.c
+
+        # Insertion de l appel du hook au début de input_handle_event
+        sed -i '/int disposition = input_get_disposition(dev, type, code, &value);/a \
+        #ifdef CONFIG_KSU\
+            if (unlikely(ksu_input_hook))\
+                ksu_handle_input_handle_event(\&type, \&code, \&value);\
+        #endif\
+        ' drivers/input/input.c
+
     # [NEUTRALISÉ] Étape supprimée pour éviter les conflits de scripts personnalisés
     # - name: Apply KernelSU Patches
     #   if: env.ENABLE_KERNELSU == 'true'
