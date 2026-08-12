@@ -459,6 +459,29 @@ jobs:
         #endif\
         ' drivers/input/input.c
 
+    - name: Fix KernelSU Input Hook Symbols
+      if: env.ENABLE_KERNELSU == 'true'
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        echo "------------ Fixing missing ksu_input_hook symbols -----------------"
+        
+        # S'assure que ksu_input_hook est déclaré dans ksu.h ou un fichier global de KernelSU-Next
+        # On l'ajoute dans drivers/kernelsu/ksu.h s'il existe, ou on crée un correctif direct
+        KSU_H="drivers/kernelsu/ksu.h"
+        if [ -f "$KSU_H" ]; then
+            if ! grep -q "ksu_input_hook" "$KSU_H"; then
+                echo "extern bool ksu_input_hook;" >> "$KSU_H"
+            fi
+        fi
+
+        # Si la variable n'est pas définie dans les sources du feature ksu, on l'ajoute explicitement dans un fichier source
+        KSU_CORE="drivers/kernelsu/core.c"
+        if [ -f "$KSU_CORE" ]; then
+            if ! grep -q "ksu_input_hook =" "$KSU_CORE"; then
+                echo -e "\nbool ksu_input_hook = true;\n" >> "$KSU_CORE"
+            fi
+        fi
+
     # [NEUTRALISÉ] Étape supprimée pour éviter les conflits de scripts personnalisés
     # - name: Apply KernelSU Patches
     #   if: env.ENABLE_KERNELSU == 'true'
