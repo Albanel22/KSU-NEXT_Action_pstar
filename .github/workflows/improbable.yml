@@ -220,7 +220,6 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         echo "------------ Patches for lxc and docker ----------------------------------------------------"
         patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/cgroup.patch
-        ## patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/xt_qtaguid.patch
 
     - name: Apply patches for kali nethunter
       if: env.Add_Kali_Nethunter_Patches == 'true'
@@ -234,25 +233,19 @@ jobs:
         find kali-nethunter-kernel/patches/${{ env.Kernel_Version }}/  -type f -name "*.patch" -exec  sh -c 'git apply {}' \;
 
         echo "------------ Add Kernel Config required by Kali --------------------------------------------"
-        # Configuring the Kernel - General (https://www.kali.org/docs/nethunter/nethunter-kernel-2-config-1)
-        # General (ignore set “Default host name” to “kali”)
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_SYSVIPC
 
-        # Modules
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_MODULES \
         -e CONFIG_MODULE_UNLOAD \
         -e CONFIG_MODULE_FORCE_UNLOAD \
         -e CONFIG_MODVERSIONS
 
-        # Kernel Image
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE \
         -e IMG_GZ_DTB
 
-        # Configuring the Kernel - Network (https://www.kali.org/docs/nethunter/nethunter-kernel-3-config-2/)
-        # Bluetooth
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_BT_HCIBTUSB \
         -e CONFIG_BT_HCIBTUSB_BCM \
@@ -264,24 +257,13 @@ jobs:
         -e CONFIG_BT_HCIBFUSB \
         -e CONFIG_BT_HCIVHCI
 
-        # Android Binder IPC Driver
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_ANDROID_BINDER_IPC
 
-        # MAC80211
-        #scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
-        #-e CONFIG_CFG80211_WEXT \
-        #-e CONFIG_MAC80211 \
-        #-e CONFIG_MAC80211_MESH
-
-        # Ethernet
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_USB_RTL8150 \
         -e CONFIG_USB_RTL8152
 
-        # Configuring the Kernel - Wifi (https://www.kali.org/docs/nethunter/nethunter-kernel-4-config-3/)
-        # Kernel Configuration cont.
-        # Wireless LAN
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_WLAN_VENDOR_ATH \
         -e CONFIG_ATH9K_HTC \
@@ -311,10 +293,6 @@ jobs:
         -e CONFIG_ZD1211RW \
         -e CONFIG_USB_NET_RNDIS_WLAN
 
-        # Configuring the Kernel - SDR (https://www.kali.org/docs/nethunter/nethunter-kernel-5-config-4/)
-        # Configuring the Kernel - SDR
-        # Kernel Configuration
-        # SDR
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_MEDIA_DIGITAL_TV_SUPPORT \
         -e CONFIG_MEDIA_SDR_SUPPORT \
@@ -328,14 +306,9 @@ jobs:
         -e CONFIG_DVB_SI2168 \
         -e CONFIG_DVB_ZD1301_DEMOD
 
-        # Configuring the 4.x Kernel - USB (https://www.kali.org/docs/nethunter/nethunter-kernel-7-config-6/)
-        # Configuring the 4.x Kernel - USB
-        # Kernel Configuration cont.
-        # USB Modem
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_USB_ACM
 
-        # USB Gadget support
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_USB_CONFIGFS_SERIAL \
         -e CONFIG_USB_CONFIGFS_ACM \
@@ -348,7 +321,6 @@ jobs:
         -e CONFIG_USB_CONFIGFS_MASS_STORAGE \
         -e CONFIG_USB_CONFIGFS_F_HID
 
-        # Configuring the Kernel - NFS (https://www.kali.org/docs/nethunter/nethunter-kernel-8-config-7/)
         scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} \
         -e CONFIG_NETWORK_FILESYSTEMS \
         -e CONFIG_NFS_V2 \
@@ -357,7 +329,6 @@ jobs:
         -e CONFIG_NFSD \
         -e CONFIG_NFSD_V3 \
         -e CONFIG_NFSD_V4
-
 
     - name: Remove ANDROID_PARANOID_NETWORK
       if: env.Remove_ANDROID_PARANOID_NETWORK == 'true'
@@ -375,36 +346,6 @@ jobs:
         -e CONFIG_MODULE_FORCE_LOAD \
         -d CONFIG_MODULE_SIG_FORCE
         patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/module.patch
-        #https://blog.xzr.moe/archives/236/
-        #disable CONFIG_MODVERSIONS is useless
-
-    # [NEUTRALISÉ] Remplacé par l'intégration native de KernelSU-Next
-    # - name: Backport cred commit required by kernelsu
-    #   if: env.ENABLE_KERNELSU == 'true'
-    #   run: |
-    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-    #     echo "------------ Patches for backport cred commit required by kernelsu ----------------------------------------------------"
-    #     git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-Reapply-cred-switch-to-using-atomic_long_t.patch
-    #     git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0002-BACKPORT-cred-add-get_cred_rcu.patch
-
-    # [NEUTRALISÉ] Remplacé par l'intégration native de KernelSU-Next
-    # - name: Backport seccomp add filter_count field for KernelSU
-    #   if: env.ENABLE_KERNELSU == 'true'
-    #   run: |
-    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-    #     echo "------------ Patches for backport seccomp add filter_count field for kernelsu ----------------------------------------------------"
-    #     git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-BACKPORT-seccomp-add-filter_count-field-for-KernelSU.patch
-
-    # [NEUTRALISÉ] Remplacé par l'intégration native de KernelSU-Next
-    # - name: Add KernelSU patches
-    #   if: env.ENABLE_KERNELSU == 'true'
-    #   run: |
-    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-    #     echo "------------ Patches for KernelSU hooks ----------------------------------------------------"
-    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-BACKPORT-fs-refactor-ksys_umount.patch
-    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0002-BACKPORT-fs-fix-a-struct-path-leak-in-path_umount.patch
-    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0003-BACKPORT-umount-2-move-the-flag-validity-checks-firs.patch
-    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-PATCH-09-17-BACKPORT-ptrace-Move-setting-clearing-pt.patch
 
     - name: Update DTC
       run: |
@@ -418,7 +359,6 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         echo "------------ Patches for remove warning ----------------------------------------------------"
         patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/nowarnings.patch
-        #scripts/config --file arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }} -d CONFIG_CC_WERROR -e CONFIG_SECTION_MISMATCH_WARN_ONLY --set-val CONFIG_FRAME_WARN 4096
 
     - name: Download source boot image
       if: env.BUILD_BOOT_IMG == 'true'
@@ -434,42 +374,14 @@ jobs:
       if: env.ENABLE_KERNELSU == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        
-        # 1. Utilisation du script officiel de la branche choisie
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
         
-        # 2. Injection des configurations obligatoires pour KernelSU sur noyau 4.19
         echo "CONFIG_KSU=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         echo "CONFIG_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         echo "CONFIG_HAVE_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         echo "CONFIG_KPROBE_EVENTS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         
         echo "UPLOADNAME=-KernelSU-Next" >> $GITHUB_ENV
-
-  
-    # [NEUTRALISÉ] Étape supprimée pour éviter les conflits de scripts personnalisés
-    # - name: Apply KernelSU Patches
-    #   if: env.ENABLE_KERNELSU == 'true'
-    #   run: |
-    #     echo "------------ Copying and Applying Patches ----------------------------------------------"
-    #     cp $GITHUB_WORKSPACE/patches/patches.sh $GITHUB_WORKSPACE/kernel_workspace/android-kernel/
-    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-    #     sh patches.sh
-    #     rm patches.sh
-
-    - name: Fix ksu_input_hook Symbol for KernelSU-Next
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        
-        # Crée un fichier source minimal qui déclare le symbole attendu par selinux_hide.c
-        mkdir -p drivers/kernelsu/override
-        echo '#include <linux/types.h>' > drivers/kernelsu/override/ksu_fix.c
-        echo 'bool ksu_input_hook = false;' >> drivers/kernelsu/override/ksu_fix.c
-        
-        # L'ajoute au Makefile de KernelSU pour qu'il soit compilé en dur
-        echo 'obj-y += override/ksu_fix.o' >> drivers/kernelsu/Makefile
-        
-        echo "Successfully injected ksu_input_hook symbol override."
 
     - name: Setup Configuration for Kernel
       run: |
@@ -503,14 +415,15 @@ jobs:
         key: build-kernel-${{ env.DEVICE }}${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
         max-size: 2G
 
-    - name: Fix ksu_input_hook Symbol for KernelSU-Next
+    - name: Force Export ksu_input_hook
+      if: env.ENABLE_KERNELSU == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        mkdir -p drivers/kernelsu/override
-        echo '#include <linux/types.h>' > drivers/kernelsu/override/ksu_fix.c
-        echo 'bool ksu_input_hook = false;' >> drivers/kernelsu/override/ksu_fix.c
-        echo 'obj-y += override/ksu_fix.o' >> drivers/kernelsu/Makefile
-        echo "Successfully injected ksu_input_hook symbol override."
+        echo "" >> drivers/input/input.c
+        echo "/* Fix for KernelSU-Next selinux_hide */" >> drivers/input/input.c
+        echo "bool ksu_input_hook = false;" >> drivers/input/input.c
+        echo "EXPORT_SYMBOL(ksu_input_hook);" >> drivers/input/input.c
+        echo "Successfully exported ksu_input_hook globally in drivers/input/input.c"
 
     - name: Build kernel
       run: |
@@ -579,22 +492,27 @@ jobs:
                 mkdir AnyKernel3
                 tar -C AnyKernel3/ -zxvf AnyKernel3.tar.gz
             else
-                git clone ${{ env.CUSTOM_ANYKERNEL3_SOURCE }} -b ${{ env.CUSTOM_ANYKERNEL3_BRANCH }} --depth=1 AnyKernel3
+                git clone ${{ env.CUSTOM_ANYKERNEL3_SOURCE }} -b ${{ env.CUSTOM_ANYKERNEL3_BRANCH }} AnyKernel3 --depth=1
             fi
         else
             wget -O AnyKernel3.zip ${{ env.CUSTOM_ANYKERNEL3_SOURCE }}
             mkdir AnyKernel3
             unzip AnyKernel3.zip -d AnyKernel3/
         fi
+        sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
+        sed -i 's!BLOCK=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;!BLOCK=auto;!g' AnyKernel3/anykernel.sh
+        sed -i 's/IS_SLOT_DEVICE=0;/IS_SLOT_DEVICE=auto;/g' AnyKernel3/anykernel.sh
         cp android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} AnyKernel3/
         if [ ${{ env.CHECK_DTBO_IS_OK }} = true ]; then
             cp android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img AnyKernel3/
         fi
         rm -rf AnyKernel3/.git* AnyKernel3/README.md
-    
-    - name: Upload AnyKernel3
+
+    - name: Upload Kernel
       if: env.CHECK_FILE_IS_OK == 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
-        name: AnyKernel3${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}-${{ env.DEVICE }}-${{ env.BUILD_TIME }}
-        path: kernel_workspace/AnyKernel3/*
+        name: AnyKernel3-${{ env.DEVICE }}-${{ env.BUILD_TIME }}${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
+        path: |
+          kernel_workspace/AnyKernel3/*
+          !kernel_workspace/AnyKernel3/README.md
