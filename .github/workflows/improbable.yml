@@ -437,51 +437,23 @@ jobs:
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
         echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
 
-    - name: Patch input.c for KernelSU
+    - name: Define ksu_input_hook globally
       if: env.ENABLE_KERNELSU == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Patching drivers/input/input.c for KernelSU input hook -----------------"
         
-        # Insertion des déclarations externes avant input_handle_event
-        sed -i '/static void input_handle_event/i \
-        #ifdef CONFIG_KSU\
-        extern bool ksu_input_hook __read_mostly;\
-        extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);\
-        #endif\
-        ' drivers/input/input.c
-
-        # Insertion de l appel du hook au début de input_handle_event
-        sed -i '/int disposition = input_get_disposition(dev, type, code, &value);/a \
-        #ifdef CONFIG_KSU\
-            if (unlikely(ksu_input_hook))\
-                ksu_handle_input_handle_event(\&type, \&code, \&value);\
-        #endif\
-        ' drivers/input/input.c
-
-    - name: Fix KernelSU Input Hook Symbols
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Fixing missing ksu_input_hook symbols -----------------"
+        # Cherche où se trouve le fichier core ou ksu principal pour y injecter la déclaration
+        CORE_FILE=$(find drivers/kernelsu -name "core.c" -o -name "ksu.c" | head -n 1)
         
-        # S'assure que ksu_input_hook est déclaré dans ksu.h ou un fichier global de KernelSU-Next
-        # On l'ajoute dans drivers/kernelsu/ksu.h s'il existe, ou on crée un correctif direct
-        KSU_H="drivers/kernelsu/ksu.h"
-        if [ -f "$KSU_H" ]; then
-            if ! grep -q "ksu_input_hook" "$KSU_H"; then
-                echo "extern bool ksu_input_hook;" >> "$KSU_H"
-            fi
+        if [ -n "$CORE_FILE" ]; then
+            echo "Injecting ksu_input_hook into $CORE_FILE"
+            echo -e "\nbool ksu_input_hook = false;\n" >> "$CORE_FILE"
+        else
+            echo "Core file not found, creating definition fallback..."
+            echo -e "bool ksu_input_hook = false;" > drivers/kernelsu/input_hook_def.c
         fi
 
-        # Si la variable n'est pas définie dans les sources du feature ksu, on l'ajoute explicitement dans un fichier source
-        KSU_CORE="drivers/kernelsu/core.c"
-        if [ -f "$KSU_CORE" ]; then
-            if ! grep -q "ksu_input_hook =" "$KSU_CORE"; then
-                echo -e "\nbool ksu_input_hook = true;\n" >> "$KSU_CORE"
-            fi
-        fi
-
+  
     # [NEUTRALISÉ] Étape supprimée pour éviter les conflits de scripts personnalisés
     # - name: Apply KernelSU Patches
     #   if: env.ENABLE_KERNELSU == 'true'
