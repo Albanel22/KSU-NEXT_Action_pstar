@@ -81,7 +81,7 @@ jobs:
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%Y%m%d%H%M")" >> $GITHUB_ENV
         echo "DEVICE=$(echo ${{ env.KERNEL_CONFIG }} | sed 's!vendor/!!;s/_defconfig//;s/_user//;s/-perf//')" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
+        sudo apt-get install git cmake automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
 
     - name: Download Clang-aosp
@@ -378,30 +378,33 @@ jobs:
         #https://blog.xzr.moe/archives/236/
         #disable CONFIG_MODVERSIONS is useless
 
-    - name: Backport cred commit required by kernelsu
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Patches for backport cred commit required by kernelsu ----------------------------------------------------"
-        git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-Reapply-cred-switch-to-using-atomic_long_t.patch
-        git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0002-BACKPORT-cred-add-get_cred_rcu.patch
+    # [NEUTRALISÉ] Remplacé par l'intégration native de KernelSU-Next
+    # - name: Backport cred commit required by kernelsu
+    #   if: env.ENABLE_KERNELSU == 'true'
+    #   run: |
+    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+    #     echo "------------ Patches for backport cred commit required by kernelsu ----------------------------------------------------"
+    #     git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-Reapply-cred-switch-to-using-atomic_long_t.patch
+    #     git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0002-BACKPORT-cred-add-get_cred_rcu.patch
 
-    - name: Backport seccomp add filter_count field for KernelSU
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Patches for backport seccomp add filter_count field for kernelsu ----------------------------------------------------"
-        git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-BACKPORT-seccomp-add-filter_count-field-for-KernelSU.patch
+    # [NEUTRALISÉ] Remplacé par l'intégration native de KernelSU-Next
+    # - name: Backport seccomp add filter_count field for KernelSU
+    #   if: env.ENABLE_KERNELSU == 'true'
+    #   run: |
+    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+    #     echo "------------ Patches for backport seccomp add filter_count field for kernelsu ----------------------------------------------------"
+    #     git apply kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-BACKPORT-seccomp-add-filter_count-field-for-KernelSU.patch
 
-    - name: Add KernelSU patches
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "------------ Patches for KernelSU hooks ----------------------------------------------------"
-        patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-BACKPORT-fs-refactor-ksys_umount.patch
-        patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0002-BACKPORT-fs-fix-a-struct-path-leak-in-path_umount.patch
-        patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0003-BACKPORT-umount-2-move-the-flag-validity-checks-firs.patch
-        patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-PATCH-09-17-BACKPORT-ptrace-Move-setting-clearing-pt.patch
+    # [NEUTRALISÉ] Remplacé par l'intégration native de KernelSU-Next
+    # - name: Add KernelSU patches
+    #   if: env.ENABLE_KERNELSU == 'true'
+    #   run: |
+    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+    #     echo "------------ Patches for KernelSU hooks ----------------------------------------------------"
+    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-BACKPORT-fs-refactor-ksys_umount.patch
+    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0002-BACKPORT-fs-fix-a-struct-path-leak-in-path_umount.patch
+    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0003-BACKPORT-umount-2-move-the-flag-validity-checks-firs.patch
+    #     patch -p1 < kernel_patches/patches/${{ env.Kernel_Extra_Version }}/0001-PATCH-09-17-BACKPORT-ptrace-Move-setting-clearing-pt.patch
 
     - name: Update DTC
       run: |
@@ -434,19 +437,15 @@ jobs:
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
         echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
 
-    - name: Apply KernelSU Patches
-      if: env.ENABLE_KERNELSU == 'true'
-      run: |
-        echo "------------ Copying and Applying Patches ----------------------------------------------"
-        # On copie le script depuis ton dépôt vers le dossier du noyau
-        cp $GITHUB_WORKSPACE/patches/patches.sh $GITHUB_WORKSPACE/kernel_workspace/android-kernel/
-        
-        # On exécute le script
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        sh patches.sh
-        
-        # On nettoie pour ne pas laisser traîner le script
-        rm patches.sh
+    # [NEUTRALISÉ] Étape supprimée pour éviter les conflits de scripts personnalisés
+    # - name: Apply KernelSU Patches
+    #   if: env.ENABLE_KERNELSU == 'true'
+    #   run: |
+    #     echo "------------ Copying and Applying Patches ----------------------------------------------"
+    #     cp $GITHUB_WORKSPACE/patches/patches.sh $GITHUB_WORKSPACE/kernel_workspace/android-kernel/
+    #     cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+    #     sh patches.sh
+    #     rm patches.sh
 
     - name: Setup Configuration for Kernel
       run: |
@@ -509,18 +508,18 @@ jobs:
       run: |
        cd $GITHUB_WORKSPACE/kernel_workspace
        if [ -f android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} ]; then
-           echo "CHECK_FILE_IS_OK=true" >> $GITHUB_ENV
+            echo "CHECK_FILE_IS_OK=true" >> $GITHUB_ENV
        else
-           echo "Kernel output file is empty"
-           exit 1
+            echo "Kernel output file is empty"
+            exit 1
        fi
        if [ ${{ env.NEED_DTBO }} = true ]; then
-           if [ -f android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img ]; then
-               echo "CHECK_DTBO_IS_OK=true" >> $GITHUB_ENV
-           else
-               echo "DTBO image is empty"
-               exit 1
-           fi
+            if [ -f android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img ]; then
+                echo "CHECK_DTBO_IS_OK=true" >> $GITHUB_ENV
+            else
+                echo "DTBO image is empty"
+                exit 1
+            fi
        fi
   
     - name: Make Anykernel3
@@ -566,4 +565,3 @@ jobs:
       with:
         name: AnyKernel3${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}-${{ env.DEVICE }}-${{ env.BUILD_TIME }}
         path: kernel_workspace/AnyKernel3/*
-
