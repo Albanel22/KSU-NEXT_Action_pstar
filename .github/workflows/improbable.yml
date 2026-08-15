@@ -474,48 +474,41 @@ jobs:
         # Télécharge une image boot stock de référence (adapte l'URL selon ton modèle pstar/kiev)
         wget -O stock_boot.img "https://github.com/minimal-manifest-twrp/platform_device_motorola_kiev/raw/android-11/boot.img" || wget -O stock_boot.img "${{ env.SOURCE_BOOT_IMAGE }}"
 
-    - name: Build direct boot.img using magiskboot
+    - name: Repack & Finalize
       if: env.CHECK_FILE_IS_OK == 'true'
       run: |
+        set -euo pipefail
         cd $GITHUB_WORKSPACE/kernel_workspace
         
-        # Télécharge directement magiskboot (version officielle packagée pour linux x86_64)
-        git clone https://github.com/xiaoxindada/magiskboot_for_actions --depth=1 magiskboot_tool
+        # 1. Prépare le dossier de repack
+        mkdir -p repack
+        cp boot-source.img repack/boot.img
         
-        # Vérifie où se trouve le binaire et le rend exécutable
-        if [ -f "magiskboot_tool/magiskboot" ]; then
-            chmod +x magiskboot_tool/magiskboot
-            MAGISKBOOT_BIN="./magiskboot_tool/magiskboot"
-        else
-            # Solution de repli si le binaire est à la racine ou nommé différemment
-            find magiskboot_tool -name "magiskboot" -exec chmod +x {} \;
-            MAGISKBOOT_BIN=$(find magiskboot_tool -name "magiskboot" | head -n 1)
-        fi
+        # 2. Télécharge l'APK officiel de Magisk v27.0 et extrait magiskboot pour x86_64
+        wget -q https://github.com/topjohnwu/Magisk/releases/download/v27.0/Magisk-v27.0.apk -O Magisk-v27.0.apk
+        unzip -q Magisk-v27.0.apk lib/x86_64/libmagiskboot.so
+        mv lib/x86_64/libmagiskboot.so repack/magiskboot
+        chmod +x repack/magiskboot
         
-        # Crée un dossier de travail pour l'image
-        mkdir -p boot_img_work
-        cd boot_img_work
-        cp ../stock_boot.img stock.img
+        # 3. Déballe, remplace le noyau et ré-empaquette
+        cd repack
+        ./magiskboot unpack boot.img
         
-        # Décompresse l'image stock
-        $MAGISKBOOT_BIN unpack stock.img
-        
-        # Remplace le noyau par celui que tu viens de compiler
+        # Copie le noyau compilé vers le dossier de travail sous le nom requis
         cp ../android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} kernel
         
-        # Ré-empaquette pour créer le nouveau boot.img
-        $MAGISKBOOT_BIN repack stock.img boot-new.img
-        
-        # Déplace le résultat final vers le workspace
-        mv boot-new.img ../boot.img
+        ./magiskboot repack boot.img new-boot.img
+        mv new-boot.img ../final_boot.img
         cd ..
         
+        # 4. Prépare la sortie finale
+        mkdir -p final_output
+        mv final_boot.img final_output/boot.img
         echo "BOOT_IMG_READY=true" >> $GITHUB_ENV
-        
-    - name: Upload Direct Boot Image
+
+    - name: Upload Finished Packaged Assets
       if: env.BOOT_IMG_READY == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: boot-${{ env.DEVICE }}-${{ env.BUILD_TIME }}.img
-        path: kernel_workspace/boot.img
-        
+        name: AnyKernel3-${{ env.DEVICE }}-${{ env.BUILD_TIME }}-${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
+        path: kernel_workspace/final_output/boot.img
