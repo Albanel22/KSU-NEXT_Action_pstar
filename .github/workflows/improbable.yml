@@ -468,51 +468,46 @@ jobs:
             fi
        fi
   
-    - name: Make Anykernel3
-      if: env.CHECK_FILE_IS_OK == 'true' && env.USE_CUSTOM_ANYKERNEL3 != 'true'
+    - name: Download source boot image for repack
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://github.com/osm0sis/AnyKernel3 --depth=1 AnyKernel3
-        sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
-        sed -i 's!BLOCK=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;!BLOCK=auto;!g' AnyKernel3/anykernel.sh
-        sed -i 's/IS_SLOT_DEVICE=0;/IS_SLOT_DEVICE=auto;/g' AnyKernel3/anykernel.sh
-        cp android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} AnyKernel3/
-        if [ ${{ env.CHECK_DTBO_IS_OK }} = true ]; then
-            cp android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img AnyKernel3/
-        fi
-        rm -rf AnyKernel3/.git* AnyKernel3/README.md
+        # Télécharge une image boot stock de référence (adapte l'URL selon ton modèle pstar/kiev)
+        wget -O stock_boot.img "https://github.com/minimal-manifest-twrp/platform_device_motorola_kiev/raw/android-11/boot.img" || wget -O stock_boot.img "${{ env.SOURCE_BOOT_IMAGE }}"
 
-    - name: Make Custom-Anykernel3
-      if: env.CHECK_FILE_IS_OK == 'true' && env.USE_CUSTOM_ANYKERNEL3 == 'true'
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        if [[ ${{ env.CUSTOM_ANYKERNEL3_SOURCE }} =~ git ]]; then
-            if [[ ${{ env.CUSTOM_ANYKERNEL3_SOURCE }} == *'.tar.gz' ]]; then
-                wget -O AnyKernel3.tar.gz ${{ env.CUSTOM_ANYKERNEL3_SOURCE }}
-                mkdir AnyKernel3
-                tar -C AnyKernel3/ -zxvf AnyKernel3.tar.gz
-            else
-                git clone ${{ env.CUSTOM_ANYKERNEL3_SOURCE }} -b ${{ env.CUSTOM_ANYKERNEL3_BRANCH }} AnyKernel3 --depth=1
-            fi
-        else
-            wget -O AnyKernel3.zip ${{ env.CUSTOM_ANYKERNEL3_SOURCE }}
-            mkdir AnyKernel3
-            unzip AnyKernel3.zip -d AnyKernel3/
-        fi
-        sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
-        sed -i 's!BLOCK=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;!BLOCK=auto;!g' AnyKernel3/anykernel.sh
-        sed -i 's/IS_SLOT_DEVICE=0;/IS_SLOT_DEVICE=auto;/g' AnyKernel3/anykernel.sh
-        cp android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} AnyKernel3/
-        if [ ${{ env.CHECK_DTBO_IS_OK }} = true ]; then
-            cp android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img AnyKernel3/
-        fi
-        rm -rf AnyKernel3/.git* AnyKernel3/README.md
-
-    - name: Upload Kernel
+    - name: Build direct boot.img using magiskboot
       if: env.CHECK_FILE_IS_OK == 'true'
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace
+        
+        # Clone ou récupère magiskboot (si pas déjà présent dans tes outils)
+        git clone https://github.com/topjohnwu/Magisk.git --depth=1 magisk_src
+        # Ou utilise un binaire pré-compilé de magiskboot selon ton setup
+        
+        # Crée un dossier de travail pour l'image
+        mkdir -p boot_img_work
+        cd boot_img_work
+        cp ../stock_boot.img stock.img
+        
+        # Décompresse l'image stock
+        magiskboot unpack stock.img
+        
+        # Remplace le noyau par celui que tu viens de compiler
+        # (Vérifie le nom exact de ton output, ex: Image.gz-dtb ou Image)
+        cp ../android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} kernel
+        
+        # Ré-empaquette pour créer le nouveau boot.img
+        magiskboot repack stock.img boot-new.img
+        
+        # Déplace le résultat final vers le workspace
+        mv boot-new.img ../boot.img
+        cd ..
+        
+        echo "BOOT_IMG_READY=true" >> $GITHUB_ENV
+
+    - name: Upload Direct Boot Image
+      if: env.BOOT_IMG_READY == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: AnyKernel3-${{ env.DEVICE }}-${{ env.BUILD_TIME }}${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
-        path: |
-          kernel_workspace/AnyKernel3/*
-          !kernel_workspace/AnyKernel3/README.md
+        name: boot-${{ env.DEVICE }}-${{ env.BUILD_TIME }}.img
+        path: kernel_workspace/boot.img
+        
