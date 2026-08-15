@@ -479,9 +479,18 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         
-        # Clone un dépôt contenant le binaire magiskboot compilé automatiquement via GitHub Actions
-        git clone https://github.com/Uevo001/magiskboot-linux --depth=1 magiskboot_tool
-        chmod +x magiskboot_tool/magiskboot
+        # Télécharge directement magiskboot (version officielle packagée pour linux x86_64)
+        git clone https://github.com/xiaoxindada/magiskboot_for_actions --depth=1 magiskboot_tool
+        
+        # Vérifie où se trouve le binaire et le rend exécutable
+        if [ -f "magiskboot_tool/magiskboot" ]; then
+            chmod +x magiskboot_tool/magiskboot
+            MAGISKBOOT_BIN="./magiskboot_tool/magiskboot"
+        else
+            # Solution de repli si le binaire est à la racine ou nommé différemment
+            find magiskboot_tool -name "magiskboot" -exec chmod +x {} \;
+            MAGISKBOOT_BIN=$(find magiskboot_tool -name "magiskboot" | head -n 1)
+        fi
         
         # Crée un dossier de travail pour l'image
         mkdir -p boot_img_work
@@ -489,13 +498,13 @@ jobs:
         cp ../stock_boot.img stock.img
         
         # Décompresse l'image stock
-        ../magiskboot_tool/magiskboot unpack stock.img
+        $MAGISKBOOT_BIN unpack stock.img
         
         # Remplace le noyau par celui que tu viens de compiler
         cp ../android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} kernel
         
         # Ré-empaquette pour créer le nouveau boot.img
-        ../magiskboot_tool/magiskboot repack stock.img boot-new.img
+        $MAGISKBOOT_BIN repack stock.img boot-new.img
         
         # Déplace le résultat final vers le workspace
         mv boot-new.img ../boot.img
