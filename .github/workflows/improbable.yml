@@ -479,36 +479,30 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         
-        # 1. Télécharge directement l'utilitaire magiskboot pré-compilé (via la dernière release de Magisk)
-        # On extrait la version pour linux x86_64
-        wget -O magisk.zip https://github.com/topjohnwu/Magisk/releases/download/v26.3/Magisk-v26.3.apk
-        unzip -q magisk.zip 'lib/armeabi-v7a/libmagiskboot.so' -d . || unzip -q magisk.zip 'lib/arm64-v8a/libmagiskboot.so' -d . || true
-        
-        # Alternative plus simple et universelle pour x86_64 (l'environnement GitHub Actions Runner est sous Linux x86_64) :
-        # On récupère magiskboot directement depuis un outil tiers ou on le compile proprement :
-        git clone https://github.com/xiaoxindada/magiskboot_for_actions --depth=1 magiskboot_tool
+        # Clone un dépôt contenant le binaire magiskboot compilé automatiquement via GitHub Actions
+        git clone https://github.com/Uevo001/magiskboot-linux --depth=1 magiskboot_tool
         chmod +x magiskboot_tool/magiskboot
         
-        # 2. Crée un dossier de travail pour l'image
+        # Crée un dossier de travail pour l'image
         mkdir -p boot_img_work
         cd boot_img_work
         cp ../stock_boot.img stock.img
         
-        # 3. Décompresse l'image stock avec magiskboot
+        # Décompresse l'image stock
         ../magiskboot_tool/magiskboot unpack stock.img
         
-        # 4. Remplace le noyau par celui que tu viens de compiler
+        # Remplace le noyau par celui que tu viens de compiler
         cp ../android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} kernel
         
-        # 5. Ré-empaquette pour créer le nouveau boot.img
+        # Ré-empaquette pour créer le nouveau boot.img
         ../magiskboot_tool/magiskboot repack stock.img boot-new.img
         
-        # 6. Déplace le résultat final vers le workspace
+        # Déplace le résultat final vers le workspace
         mv boot-new.img ../boot.img
         cd ..
         
         echo "BOOT_IMG_READY=true" >> $GITHUB_ENV
-
+        
     - name: Upload Direct Boot Image
       if: env.BOOT_IMG_READY == 'true'
       uses: actions/upload-artifact@v4
