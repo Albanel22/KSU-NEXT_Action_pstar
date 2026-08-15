@@ -479,26 +479,31 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         
-        # Clone ou récupère magiskboot (si pas déjà présent dans tes outils)
-        git clone https://github.com/topjohnwu/Magisk.git --depth=1 magisk_src
-        # Ou utilise un binaire pré-compilé de magiskboot selon ton setup
+        # 1. Télécharge directement l'utilitaire magiskboot pré-compilé (via la dernière release de Magisk)
+        # On extrait la version pour linux x86_64
+        wget -O magisk.zip https://github.com/topjohnwu/Magisk/releases/download/v26.3/Magisk-v26.3.apk
+        unzip -q magisk.zip 'lib/armeabi-v7a/libmagiskboot.so' -d . || unzip -q magisk.zip 'lib/arm64-v8a/libmagiskboot.so' -d . || true
         
-        # Crée un dossier de travail pour l'image
+        # Alternative plus simple et universelle pour x86_64 (l'environnement GitHub Actions Runner est sous Linux x86_64) :
+        # On récupère magiskboot directement depuis un outil tiers ou on le compile proprement :
+        git clone https://github.com/xiaoxindada/magiskboot_for_actions --depth=1 magiskboot_tool
+        chmod +x magiskboot_tool/magiskboot
+        
+        # 2. Crée un dossier de travail pour l'image
         mkdir -p boot_img_work
         cd boot_img_work
         cp ../stock_boot.img stock.img
         
-        # Décompresse l'image stock
-        magiskboot unpack stock.img
+        # 3. Décompresse l'image stock avec magiskboot
+        ../magiskboot_tool/magiskboot unpack stock.img
         
-        # Remplace le noyau par celui que tu viens de compiler
-        # (Vérifie le nom exact de ton output, ex: Image.gz-dtb ou Image)
+        # 4. Remplace le noyau par celui que tu viens de compiler
         cp ../android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} kernel
         
-        # Ré-empaquette pour créer le nouveau boot.img
-        magiskboot repack stock.img boot-new.img
+        # 5. Ré-empaquette pour créer le nouveau boot.img
+        ../magiskboot_tool/magiskboot repack stock.img boot-new.img
         
-        # Déplace le résultat final vers le workspace
+        # 6. Déplace le résultat final vers le workspace
         mv boot-new.img ../boot.img
         cd ..
         
